@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>精緻女孩三層資產記帳系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .input { width: 100%; margin-bottom: 0.75rem; border-radius: 0.75rem; border: 1px solid #334155; background: #020617; padding: 0.75rem 1rem; color: #f8fafc; outline: none; }
+        .input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25); }
+        .btn { width: 100%; border-radius: 0.75rem; background: #2563eb; padding: 0.8rem 1rem; font-weight: 700; color: white; transition: background 0.2s; }
+        .btn:hover { background: #3b82f6; }
+        .tab-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-medium: 500; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <main class="mx-auto max-w-7xl p-4 md:p-8">
+        
+        <section class="mb-6 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-blue-950 p-6 shadow-xl">
+            <p class="text-sm text-slate-400">所有加總總資產</p>
+            <h1 id="totalAsset" class="mt-2 text-4xl font-bold tracking-tight">$0.00</h1>
+            
+            <div class="mt-5 grid gap-3 sm:grid-cols-4">
+                <div class="rounded-xl bg-slate-900/70 p-4">
+                    <p class="text-xs text-slate-400">👛 身上現金總額</p>
+                    <p id="walletTotal" class="mt-1 text-xl font-semibold text-emerald-400">$0.00</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/70 p-4">
+                    <p class="text-xs text-slate-400">🏦 銀行戶頭總額</p>
+                    <p id="bankTotal" class="mt-1 text-xl font-semibold text-blue-400">$0.00</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/70 p-4">
+                    <p class="text-xs text-slate-400">📈 投資成本總額 (股票/基金)</p>
+                    <p id="stockTotal" class="mt-1 text-xl font-semibold text-amber-400">$0.00</p>
+                </div>
+                <div class="rounded-xl bg-slate-900/70 p-4">
+                    <p class="text-xs text-slate-400">帳戶數 / 投資標的數</p>
+                    <p id="countTotal" class="mt-1 text-xl font-semibold">0 / 0</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid gap-6 lg:grid-cols-[1fr_420px]">
+            
+            <section class="space-y-6">
+                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h2 class="text-lg font-semibold">我的三層資產帳戶</h2>
+                        <button onclick="loadData()" class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium hover:bg-slate-700">刷新</button>
+                    </div>
+                    <div id="accountList" class="space-y-3"></div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+                    <h2 class="mb-4 text-lg font-semibold">投資標的庫存 (股票 / 基金)</h2>
+                    <div id="stockList" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <aside class="space-y-6">
+                <form id="accountForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+                    <h2 class="mb-4 text-lg font-semibold">✨ 新增資產帳戶</h2>
+                    <input name="name" required placeholder="帳戶或錢包名稱 (如：生活費錢包、富邦銀行)" class="input" />
+                    <select name="type" required class="input">
+                        <option value="身上現金">👛 身上現金</option>
+                        <option value="銀行戶頭">🏦 銀行戶頭</option>
+                        <option value="證券投資">📈 證券投資 (股票/基金)</option>
+                    </select>
+                    <input name="balance" type="number" step="0.01" value="0" required placeholder="初始金額" class="input" />
+                    <button class="btn">新增帳戶</button>
+                </form>
+
+                <form id="transactionForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+                    <h2 class="mb-4 text-lg font-semibold">✍️ 新增日常記帳</h2>
+                    <select name="account_id" required class="input account-select"></select>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select name="type" required class="input" onchange="updateCategories(this.value)">
+                            <option value="支出">支出</option>
+                            <option value="收入">收入</option>
+                        </select>
+                        <select name="category" id="categorySelect" required class="input"></select>
+                    </div>
+                    <input name="amount" type="number" step="0.01" min="0.01" required placeholder="交易金額" class="input" />
+                    <input name="date" type="date" required class="input" />
+                    <input name="memo" placeholder="備註原因" class="input" />
+                    <button class="btn bg-emerald-600 hover:bg-emerald-500">送出記帳</button>
+                </form>
+
+                <form id="transferForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+                    <h2 class="mb-4 text-lg font-semibold">🔄 帳戶資金互轉</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-slate-400">從哪裡轉出</label>
+                            <select name="from_account_id" required class="input account-select mt-1"></select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400">轉入到哪裡</label>
+                            <select name="to_account_id" required class="input account-select mt-1"></select>
+                        </div>
+                    </div>
+                    <input name="amount" type="number" step="0.01" min="0.01" required placeholder="轉帳金額" class="input" />
+                    <input name="date" type="date" required class="input" />
+                    <input name="memo" placeholder="備註 (如：ATM 提款)" class="input" />
+                    <button class="btn bg-blue-600 hover:bg-blue-500">執行轉帳</button>
+                </form>
+
+                <form id="stockForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+                    <h2 class="mb-4 text-lg font-semibold">📊 紀錄股票 / 基金買賣</h2>
+                    <select name="account_id" required class="input account-select"></select>
+                    <select name="type" required class="input">
+                        <option value="買進">買進 (增加庫存)</option>
+                        <option value="賣出">賣出 (減少庫存)</option>
+                    </select>
+                    <input name="stock_code" required placeholder="商品代號或名稱 (如：2330、美股0050、某精選基金)" class="input" />
+                    <input name="shares" type="number" step="0.0001" min="0.0001" required placeholder="股數 / 單位數" class="input" />
+                    <input name="price" type="number" step="0.0001" min="0" required placeholder="成交價 / 淨值" class="input" />
+                    <button class="btn bg-amber-600 hover:bg-amber-500">送出投資紀錄</button>
+                </form>
+            </aside>
+        </div>
+    </main>
+
+    <div id="historyModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 p-4">
+        <div class="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <div class="mb-4 flex items-center justify-between">
+                <h3 id="modalTitle" class="text-xl font-bold text-blue-400">帳戶明細歷史</h3>
+                <button onclick="closeModal()" class="rounded-lg bg-slate-800 px-3 py-1 hover:bg-slate-700">關閉</button>
+            </div>
+            <div id="modalContent" class="max-h-[450px] overflow-y-auto space-y-2 pr-2 text-sm"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 left-1/2 hidden -translate-x-1/2 rounded-xl px-4 py-3 text-sm text-white shadow-xl z-50"></div>
+
+    <script>
+        const fmt = n => "$" + Number(n || 0).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        let accounts = [], stocks = [];
+
+        const categories = {
+            "支出": ["餐飲伙食", "購物治裝", "生活雜費", "居住房租", "交通出行", "休閒娛樂", "投資出款", "其他支出"],
+            "收入": ["薪資收入", "投資理財", "獎金紅包", "副業收入", "其他收入"]
+        };
+
+        function updateCategories(type) {
+            const sel = document.getElementById("categorySelect");
+            sel.innerHTML = categories[type].map(c => `<option value="${c}">${c}</option>`).join("");
+        }
+
+        async function request(url, options) {
+            const res = await fetch(url, options);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "操作失敗");
+            return data;
+        }
+
+        function toast(msg, ok = true) {
+            const el = document.getElementById("toast");
+            el.textContent = msg;
+            el.className = `fixed bottom-5 left-1/2 -translate-x-1/2 rounded-xl px-4 py-3 text-sm text-white shadow-xl ${ok ? "bg-blue-600" : "bg-red-600"}`;
+            el.classList.remove("hidden");
+            setTimeout(() => el.classList.add("hidden"), 2500);
+        }
+
+        async function loadData() {
+            try {
+                [accounts, stocks] = await Promise.all([request("/api/accounts"), request("/api/stocks")]);
+                render();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        function render() {
+            // 三層分類數據計算
+            const walletTotal = accounts.filter(a => a.type === "身上現金").reduce((s, a) => s + Number(a.balance), 0);
+            const bankTotal = accounts.filter(a => a.type === "銀行戶頭").reduce((s, a) => s + Number(a.balance), 0);
+            const stockTotal = stocks.reduce((s, x) => s + Number(x.shares) * Number(x.cost), 0);
+
+            document.getElementById("walletTotal").textContent = fmt(walletTotal);
+            document.getElementById("bankTotal").textContent = fmt(bankTotal);
+            document.getElementById("stockTotal").textContent = fmt(stockTotal);
+            document.getElementById("totalAsset").textContent = fmt(walletTotal + bankTotal + stockTotal);
+            document.getElementById("countTotal").textContent = `${accounts.length} / ${stocks.length}`;
+
+            // 渲染資產帳戶卡片 (附帶編輯與刪除按鈕)
+            document.getElementById("accountList").innerHTML = accounts.length ? accounts.map(a => `
+                <div class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-4 hover:border-slate-700 transition">
+                    <div class="cursor-pointer flex-1" onclick="showHistory(${a.id}, '${a.name}')">
+                        <p class="font-semibold text-slate-100">${a.name}</p>
+                        <p class="text-xs text-slate-400">${a.type}</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <p class="font-bold text-blue-300">${fmt(a.balance)}</p>
+                        <button onclick="editAccount(${a.id}, '${a.name}', ${a.balance})" class="text-xs text-slate-400 hover:text-blue-400">✏️</button>
+                        <button onclick="deleteAccount(${a.id})" class="text-xs text-slate-400 hover:text-red-400">🗑️</button>
+                    </div>
+                </div>
+            `).join("") : `<p class="p-4 text-slate-500 text-sm">快去右邊新增妳的第一個三層資產帳戶吧！</p>`;
+
+            // 渲染股票/基金持股
+            document.getElementById("stockList").innerHTML = stocks.length ? stocks.map(s => `
+                <div class="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                    <div class="flex items-center justify-between">
+                        <p class="font-semibold text-amber-300">${s.stock_code}</p>
+                        <p class="text-xs text-slate-400">歸屬：${s.account_name}</p>
+                    </div>
+                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        <p><span class="block text-slate-500">持有份數</span>${Number(s.shares).toLocaleString()}</p>
+                        <p><span class="block text-slate-500">平均成本</span>${fmt(s.cost)}</p>
+                        <p><span class="block text-slate-500">總成本現值</span>${fmt(s.shares * s.cost)}</p>
+                    </div>
+                </div>
+            `).join("") : `<p class="p-4 text-slate-500 text-sm">目前尚無股票或基金投資庫存。</p>`;
+
+            // 更新所有下拉帳戶選單
+            document.querySelectorAll(".account-select").forEach(sel => {
+                const current = sel.value;
+                sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.name} (${a.type})</option>`).join("");
+                if (current) sel.value = current;
+            });
+        }
+
+        // 修改帳戶名稱或餘額
+        async function editAccount(id, oldName, oldBalance) {
+            const newName = prompt("請輸入新的帳戶名稱：", oldName);
+            if (!newName) return;
+            const newBalance = prompt("請輸入新的帳戶金額：", oldBalance);
+            if (newBalance === null || isNaN(newBalance)) return;
+
+            try {
+                await request(`/api/accounts/${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: newName, balance: Number(newBalance) })
+                });
+                toast("修改成功！");
+                loadData();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        // 刪除帳戶
+        async function deleteAccount(id) {
+            if (!confirm("親愛的，確定要刪除這個帳戶嗎？\n這會連帶刪除該帳戶的所有記帳與轉帳紀錄喔！")) return;
+            try {
+                await request(`/api/accounts/${id}`, { method: "DELETE" });
+                toast("帳戶已安全移除");
+                loadData();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        // 顯示單一帳戶的獨立明細彈窗
+        async function showHistory(id, name) {
+            try {
+                const history = await request(`/api/accounts/${id}/history`);
+                document.getElementById("modalTitle").textContent = `👛 ${name} — 專屬明細歷史`;
+                
+                const content = history.length ? history.map(h => {
+                    let typeColor = "text-red-400";
+                    if (h.type === "收入" || h.type === "轉入") typeColor = "text-emerald-400";
+                    return `
+                        <div class="flex items-center justify-between border-b border-slate-800 py-2">
+                            <div>
+                                <span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 mr-2">${h.type}</span>
+                                <span class="font-medium">${h.category}</span>
+                                <span class="text-xs text-slate-500 ml-2">${h.date}</span>
+                                ${h.memo ? `<p class="text-xs text-slate-400 mt-0.5">💬 ${h.memo}</p>` : ''}
+                            </div>
+                            <span class="font-bold ${typeColor}">${h.type === "支出" || h.type === "轉出" ? "-" : "+"}${fmt(h.amount)}</span>
+                        </div>
+                    `;
+                }).join("") : `<p class="text-slate-500 text-center py-4">此帳戶目前尚無任何交易與轉帳明細。</p>`;
+                
+                document.getElementById("modalContent").innerHTML = content;
+                document.getElementById("historyModal").classList.remove("hidden");
+            } catch (e) { toast(e.message, false); }
+        }
+
+        function closeModal() { document.getElementById("historyModal").classList.add("hidden"); }
+
+        // 表單提交處理
+        async function initForm(formId, url) {
+            document.getElementById(formId).addEventListener("submit", async e => {
+                e.preventDefault();
+                const body = Object.fromEntries(new FormData(e.target).entries());
+                try {
+                    await request(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body)
+                    });
+                    e.target.reset();
+                    const dInput = e.target.querySelector('[name="date"]');
+                    if (dInput) dInput.value = new Date().toISOString().slice(0, 10);
+                    toast("紀錄成功！");
+                    loadData();
+                } catch (e) { toast(e.message, false); }
+            });
+        }
+
+        // 初始化
+        updateCategories("支出");
+        document.querySelectorAll('[name="date"]').forEach(el => el.value = new Date().toISOString().slice(0, 10));
+        
+        initForm("accountForm", "/api/accounts");
+        initForm("transactionForm", "/api/transactions");
+        initForm("transferForm", "/api/transfers");
+        initForm("stockForm", "/api/stocks");
+
+        loadData();
+    </script>
+</body>
+</html>
