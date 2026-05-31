@@ -15,6 +15,10 @@
   - 多筆每月固定提醒。
   - 每筆提醒可指定傳給「我」或「老公」。
   - 每筆提醒可單獨啟用、停用、編輯、刪除。
+- LINE 快速記帳：
+  - 在官方帳號輸入「記帳」。
+  - 用按鈕選擇帳戶、支出分類。
+  - 輸入金額後直接寫入系統流水帳。
 
 ## 安裝
 
@@ -104,6 +108,105 @@ ngrok http 8080
 
 後端每分鐘檢查一次 `line_reminders` 中啟用的提醒。到指定日期與時間會推播 LINE，並用 `last_sent_key` 避免同一分鐘重複傳送。
 
+## LINE 快速記帳
+
+在 LINE 官方帳號輸入：
+
+```text
+記帳
+```
+
+目前流程是：
+
+```text
+選帳戶 -> 選支出分類 -> 輸入金額 -> 寫入 transactions 並更新 accounts.balance
+```
+
+這邊刻意固定成「支出」，所以 LINE 記帳不會再多問收入/支出。收入仍然可以從網頁的「快速記帳」新增。
+
+寫入資料時：
+
+- `transactions.type` 固定為 `支出`
+- `transactions.category` 來自 LINE 選的分類
+- `transactions.amount` 來自最後輸入的金額
+- `transactions.date` 使用台北時區今天日期
+- `transactions.memo` 固定為 `LINE 快速記帳`
+- `accounts.balance` 會扣掉該筆支出金額
+
+LINE 每個使用者目前走到哪一步，存在：
+
+```text
+line_tx_sessions
+```
+
+所以不同 LINE user 同時記帳時，流程不會互相覆蓋。
+
+### 新增 LINE 分類選項
+
+分類選項在 `server.js` 開頭的 `LINE_TX_CATEGORIES`：
+
+```js
+const LINE_TX_CATEGORIES = {
+    "支出": ["餐飲食宿", "購物治裝", "生活雜費", "保險醫療", "交通出行", "休閒娛樂", "投資出款", "其他支出"],
+    "收入": ["薪資收入", "投資獲利", "獎金紅包", "其他收入"]
+};
+```
+
+LINE 快速記帳目前只使用：
+
+```js
+LINE_TX_CATEGORIES["支出"]
+```
+
+所以要新增 LINE 按鈕，只要把分類加到 `支出` 陣列，例如：
+
+```js
+"支出": ["餐飲食宿", "購物治裝", "生活雜費", "保險醫療", "交通出行", "休閒娛樂", "投資出款", "訂閱服務", "其他支出"]
+```
+
+注意：LINE quick reply 一次最多 13 個按鈕。分類超過 13 個時，需要再做分頁或多一層分類群組。
+
+### 新增 LINE 流程層級
+
+LINE 快速記帳的主要流程在 `server.js` 這幾個 function：
+
+- `startLineAccounting`：開始流程，列出帳戶按鈕。
+- `askLineExpenseCategory`：選完帳戶後，列出支出分類按鈕。
+- `askLineAmount`：選完分類後，要求輸入金額。
+- `finishLineAmount`：收到金額後，寫入資料庫並更新帳戶餘額。
+- `handleLineWebhook`：接 LINE webhook，判斷使用者按了哪個按鈕或輸入了什麼文字。
+
+如果要增加一層，例如：
+
+```text
+選帳戶 -> 選付款方式 -> 選支出分類 -> 輸入金額
+```
+
+大方向是：
+
+1. 在 `line_tx_sessions` 加欄位，例如 `payment_method TEXT`。
+2. 新增一個 function，例如 `askLinePaymentMethod(userId, replyToken, accountId)`。
+3. 在該 function 用 `saveLineTxSession` 把 `step` 設成新狀態，例如 `payment_method`。
+4. 用 `quickReplyItem` 建立按鈕，按鈕的 `data` 要放新的 action，例如 `action=line_payment&method=信用卡`。
+5. 在 `handleLineWebhook` 的 `postback` 區塊新增 `line_payment` 分支。
+6. 在 `finishLineAmount` 寫入資料時，把新欄位放進 memo，或先替 `transactions` 加正式欄位後再寫入。
+
+範例按鈕：
+
+```js
+quickReplyItem("信用卡", "action=line_payment&method=%E4%BF%A1%E7%94%A8%E5%8D%A1")
+```
+
+範例接 webhook：
+
+```js
+} else if (action === "line_payment") {
+    await askLineExpenseCategory(userId, replyToken, session.account_id);
+}
+```
+
+如果只是想在流程中多問一個「文字輸入」欄位，例如備註，可以讓 session 的 `step` 變成 `memo`，在收到文字訊息時先存 memo，再進到下一步。現在的金額輸入就是同樣模式。
+
 ## 股票看盤價
 
 按前端「更新看盤價」時，後端會呼叫：
@@ -190,6 +293,7 @@ assets.db
 - `transfers`
 - `stocks`
 - `line_reminders`
+- `line_tx_sessions`：LINE 快速記帳流程暫存。
 - `notify_settings`：舊版單一提醒設定，保留相容。
 
 ## 注意事項

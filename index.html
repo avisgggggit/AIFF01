@@ -1,310 +1,901 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>精緻女孩三層資產記帳系統</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>個人資產表</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .input { width: 100%; margin-bottom: 0.75rem; border-radius: 0.75rem; border: 1px solid #334155; background: #020617; padding: 0.75rem 1rem; color: #f8fafc; outline: none; }
-        .input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25); }
-        .btn { width: 100%; border-radius: 0.75rem; background: #2563eb; padding: 0.8rem 1rem; font-weight: 700; color: white; transition: background 0.2s; }
-        .btn:hover { background: #3b82f6; }
-        .tab-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-medium: 500; }
+        /* 奶茶色系專屬精緻元件 */
+        .input { width: 100%; margin-bottom: 0.75rem; border-radius: 0.75rem; border: 1px solid #ddd6cb; background: #ffffff; padding: 0.8rem 1rem; color: #443e38; outline: none; transition: 0.2s; font-size: 0.95rem; -webkit-appearance: none; }
+        .input:focus { border-color: #b59f86; box-shadow: 0 0 0 2px rgba(181, 159, 134, 0.2); }
+        .inline-input { background: #ffffff; border: 1px solid #c8bfae; border-radius: 0.5rem; padding: 0.3rem 0.6rem; color: #443e38; font-size: 0.85rem; outline: none; width: 100%; }
+        .inline-input:focus { border-color: #b59f86; }
+        .btn { width: 100%; border-radius: 0.75rem; background: #8c755e; padding: 0.9rem 1rem; font-weight: 700; color: white; transition: 0.2s; cursor: pointer; font-size: 1rem; text-align: center; border: none; }
+        .btn:hover { background: #735f4c; }
+        .sub-tab { padding: 0.6rem 1rem; border-radius: 0.6rem; font-size: 0.9rem; font-weight: 600; background: #eaddcd; color: #7a6e61; transition: 0.2s; }
+        .sub-tab.active { background: #8c755e; color: white; }
+        .icon-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.8rem 0.5rem; background: #fcfbfa; border: 1px solid #eaddcd; border-radius: 0.85rem; cursor: pointer; transition: 0.15s; -webkit-tap-highlight-color: transparent; }
+        .icon-btn:active { transform: scale(0.95); }
+        .icon-btn.selected { background: #f5ede2; border-color: #b59f86; box-shadow: 0 0 0 2px rgba(181, 159, 134, 0.4); }
     </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-100">
-    <main class="mx-auto max-w-7xl p-4 md:p-8">
+<body class="min-h-screen bg-stone-100 text-stone-800 font-sans antialiased">
+    <main class="mx-auto max-w-7xl p-3 sm:p-6 md:p-8 pb-12">
         
-        <section class="mb-6 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-blue-950 p-6 shadow-xl">
-            <p class="text-sm text-slate-400">所有加總總資產</p>
-            <h1 id="totalAsset" class="mt-2 text-4xl font-bold tracking-tight">$0.00</h1>
-            
-            <div class="mt-5 grid gap-3 sm:grid-cols-4">
-                <div class="rounded-xl bg-slate-900/70 p-4">
-                    <p class="text-xs text-slate-400">👛 身上現金總額</p>
-                    <p id="walletTotal" class="mt-1 text-xl font-semibold text-emerald-400">$0.00</p>
+        <nav class="mb-5 grid grid-cols-4 gap-1 rounded-2xl border border-stone-200 bg-white p-1.5 shadow-sm">
+            <button onclick="switchMainTab('dashboard')" id="nav-dashboard" class="py-2.5 text-center text-xs sm:text-sm font-bold rounded-xl transition bg-amber-800 text-white">📊 Dashboard</button>
+            <button onclick="switchMainTab('action')" id="nav-action" class="py-2.5 text-center text-xs sm:text-sm font-bold rounded-xl transition text-stone-500 hover:bg-stone-50">⚡ 快速記帳</button>
+            <button onclick="switchMainTab('history')" id="nav-history" class="py-2.5 text-center text-xs sm:text-sm font-bold rounded-xl transition text-stone-500 hover:bg-stone-50">📅 流水帳</button>
+            <button onclick="switchMainTab('settings')" id="nav-settings" class="py-2.5 text-center text-xs sm:text-sm font-bold rounded-xl transition text-stone-500 hover:bg-stone-50">⚙️ 設定</button>
+        </nav>
+
+        <section class="mb-5 rounded-2xl border border-orange-100 bg-gradient-to-r from-orange-50 to-amber-100/60 p-4 sm:p-6 shadow-sm relative">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <p class="text-[10px] sm:text-xs tracking-wider text-stone-500 uppercase flex items-center gap-1">
+                        總資產 <span id="viewModeLabel" class="text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold text-[10px]">(購買成本制)</span>
+                    </p>
+                    <h1 id="totalAsset" class="mt-0.5 text-2xl sm:text-4xl font-black text-stone-900 tracking-tight font-mono">$0</h1>
                 </div>
-                <div class="rounded-xl bg-slate-900/70 p-4">
-                    <p class="text-xs text-slate-400">🏦 銀行戶頭總額</p>
-                    <p id="bankTotal" class="mt-1 text-xl font-semibold text-blue-400">$0.00</p>
+                <div class="flex gap-1.5 w-full sm:w-auto">
+                    <button onclick="fetchLatestTwsePrices()" class="flex-1 sm:flex-none rounded-xl bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-800 hover:to-black text-white px-3 py-2 text-xs font-bold transition active:scale-95 shadow-sm">🔮 更新看盤價</button>
+                    <button onclick="toggleViewMode()" id="viewModeBtn" class="flex-1 sm:flex-none rounded-xl bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 px-3 py-2 text-xs font-bold transition">💵 切換成現值評估</button>
+                    <button onclick="loadAllData()" class="rounded-xl bg-white border border-stone-200 hover:bg-stone-50 px-3 py-2 text-xs font-bold transition text-stone-600">🔄 刷新</button>
                 </div>
-                <div class="rounded-xl bg-slate-900/70 p-4">
-                    <p class="text-xs text-slate-400">📈 投資成本總額 (股票/基金)</p>
-                    <p id="stockTotal" class="mt-1 text-xl font-semibold text-amber-400">$0.00</p>
+            </div>
+
+            <div class="mt-4 grid gap-2 grid-cols-3">
+                <div class="bg-white/80 p-2 sm:p-3 rounded-xl border border-stone-200/60 text-center sm:text-left">
+                    <p class="text-[10px] text-stone-500 truncate">👛 現金 / 銀行總額</p>
+                    <p id="walletTotal" class="text-xs sm:text-lg font-bold text-emerald-700 font-mono mt-0.5">$0</p>
                 </div>
-                <div class="rounded-xl bg-slate-900/70 p-4">
-                    <p class="text-xs text-slate-400">帳戶數 / 投資標的數</p>
-                    <p id="countTotal" class="mt-1 text-xl font-semibold">0 / 0</p>
+                <div class="bg-white/80 p-2 sm:p-3 rounded-xl border border-stone-200/60 text-center sm:text-left">
+                    <p id="stockCardLabel" class="text-[10px] text-stone-500 truncate">📈 投資總成本</p>
+                    <p id="stockTotal" class="text-xs sm:text-lg font-bold text-amber-700 font-mono mt-0.5">$0</p>
+                </div>
+                <div class="bg-white/80 p-2 sm:p-3 rounded-xl border border-stone-200/60 text-center sm:text-left">
+                    <p class="text-[10px] text-stone-500 truncate">✨ 當前資產總水位</p>
+                    <p id="netTotal" class="text-xs sm:text-lg font-bold text-stone-700 font-mono mt-0.5">$0</p>
                 </div>
             </div>
         </section>
 
-        <div class="grid gap-6 lg:grid-cols-[1fr_420px]">
+        <div id="page-dashboard" class="grid gap-4 grid-cols-1 lg:grid-cols-[380px_1fr]">
+            <div class="space-y-4 min-w-0 w-full">
+                <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="font-bold text-sm text-stone-700">資產帳戶</h2>
+                    </div>
+                    <div id="accountList" class="space-y-2 max-h-[320px] overflow-y-auto"></div>
+                </div>
+            </div>
             
-            <section class="space-y-6">
-                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                    <div class="mb-4 flex items-center justify-between">
-                        <h2 class="text-lg font-semibold">我的三層資產帳戶</h2>
-                        <button onclick="loadData()" class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium hover:bg-slate-700">刷新</button>
+            <div class="grid gap-4 grid-cols-1 md:grid-cols-2 bg-white border border-stone-200 p-4 rounded-2xl shadow-sm min-w-0 w-full">
+                <div class="flex flex-col items-center justify-center p-3 bg-stone-50 rounded-xl border border-stone-200/60 w-full">
+                    <h3 class="text-xs font-bold text-stone-600 mb-2">🍕 資產配置</h3>
+                    <div class="w-full grid grid-cols-[auto_120px] justify-center gap-4 items-center">
+                        <div id="assetLegend" class="space-y-2"></div>
+                        <div class="w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] relative mx-auto"><canvas id="chartAsset"></canvas></div>
                     </div>
-                    <div id="accountList" class="space-y-3"></div>
                 </div>
-
-                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                    <h2 class="mb-4 text-lg font-semibold">投資標的庫存 (股票 / 基金)</h2>
-                    <div id="stockList" class="space-y-3"></div>
+                <div class="flex flex-col items-center justify-center p-3 bg-stone-50 rounded-xl border border-stone-200/60 w-full">
+                    <h3 class="text-xs font-bold text-stone-600 mb-2">📊 當月消費類別佔比</h3>
+                    <div class="w-full grid grid-cols-[auto_120px] justify-center gap-4 items-center">
+                        <div id="categoryLegend" class="space-y-2"></div>
+                        <div class="w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] relative mx-auto"><canvas id="chartCategory"></canvas></div>
+                    </div>
                 </div>
-            </section>
+            </div>
 
-            <aside class="space-y-6">
-                <form id="accountForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                    <h2 class="mb-4 text-lg font-semibold">✨ 新增資產帳戶</h2>
-                    <input name="name" required placeholder="帳戶或錢包名稱 (如：生活費錢包、富邦銀行)" class="input" />
-                    <select name="type" required class="input">
-                        <option value="身上現金">👛 身上現金</option>
-                        <option value="銀行戶頭">🏦 銀行戶頭</option>
-                        <option value="證券投資">📈 證券投資 (股票/基金)</option>
-                    </select>
-                    <input name="balance" type="number" step="0.01" value="0" required placeholder="初始金額" class="input" />
-                    <button class="btn">新增帳戶</button>
-                </form>
-
-                <form id="transactionForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                    <h2 class="mb-4 text-lg font-semibold">✍️ 新增日常記帳</h2>
-                    <select name="account_id" required class="input account-select"></select>
-                    <div class="grid grid-cols-2 gap-2">
-                        <select name="type" required class="input" onchange="updateCategories(this.value)">
-                            <option value="支出">支出</option>
-                            <option value="收入">收入</option>
-                        </select>
-                        <select name="category" id="categorySelect" required class="input"></select>
-                    </div>
-                    <input name="amount" type="number" step="0.01" min="0.01" required placeholder="交易金額" class="input" />
-                    <input name="date" type="date" required class="input" />
-                    <input name="memo" placeholder="備註原因" class="input" />
-                    <button class="btn bg-emerald-600 hover:bg-emerald-500">送出記帳</button>
-                </form>
-
-                <form id="transferForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                    <h2 class="mb-4 text-lg font-semibold">🔄 帳戶資金互轉</h2>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-xs text-slate-400">從哪裡轉出</label>
-                            <select name="from_account_id" required class="input account-select mt-1"></select>
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400">轉入到哪裡</label>
-                            <select name="to_account_id" required class="input account-select mt-1"></select>
-                        </div>
-                    </div>
-                    <input name="amount" type="number" step="0.01" min="0.01" required placeholder="轉帳金額" class="input" />
-                    <input name="date" type="date" required class="input" />
-                    <input name="memo" placeholder="備註 (如：ATM 提款)" class="input" />
-                    <button class="btn bg-blue-600 hover:bg-blue-500">執行轉帳</button>
-                </form>
-
-                <form id="stockForm" class="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                    <h2 class="mb-4 text-lg font-semibold">📊 紀錄股票 / 基金買賣</h2>
-                    <select name="account_id" required class="input account-select"></select>
-                    <select name="type" required class="input">
-                        <option value="買進">買進 (增加庫存)</option>
-                        <option value="賣出">賣出 (減少庫存)</option>
-                    </select>
-                    <input name="stock_code" required placeholder="商品代號或名稱 (如：2330、美股0050、某精選基金)" class="input" />
-                    <input name="shares" type="number" step="0.0001" min="0.0001" required placeholder="股數 / 單位數" class="input" />
-                    <input name="price" type="number" step="0.0001" min="0" required placeholder="成交價 / 淨值" class="input" />
-                    <button class="btn bg-amber-600 hover:bg-amber-500">送出投資紀錄</button>
-                </form>
-            </aside>
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm col-span-1 lg:col-span-2 min-w-0 w-full">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-sm text-amber-800 tracking-wide flex items-center gap-1.5">
+                        📈 投資標的全覽 <span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">TWSE看盤價</span>
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-stone-700 min-w-[650px]">
+                        <thead class="bg-stone-100 text-[11px] text-stone-600 border-b border-stone-200 font-bold">
+                            <tr>
+                                <th class="py-2.5 px-3">帳戶 / 標的代號</th>
+                                <th class="py-2.5 px-2 text-right">股數</th>
+                                <th class="py-2.5 px-2 text-right">購買均價</th>
+                                <th class="py-2.5 px-2 text-right text-orange-700">看盤價</th>
+                                <th class="py-2.5 px-2 text-right">投入成本</th>
+                                <th class="py-2.5 px-2 text-right text-amber-900">當前總市值</th>
+                                <th class="py-2.5 px-3 text-right">預估損益 / 報酬率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockList" class="divide-y divide-stone-100 font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
+
+        <div id="page-action" class="hidden space-y-4 md:space-y-6">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <div class="flex space-x-1 mb-4 bg-stone-100 p-1 rounded-xl border border-stone-200">
+                        <button onclick="switchSubForm('f-tx')" id="tab-f-tx" class="sub-tab flex-1 active py-2">✍️ 日常記帳</button>
+                        <button onclick="switchSubForm('f-tf')" id="tab-f-tf" class="sub-tab flex-1 py-2">🔄 帳戶轉帳</button>
+                    </div>
+
+                    <form id="transactionForm" class="action-form">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">選擇帳戶</label>
+                                <select name="account_id" required class="input account-select"></select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">收支型態</label>
+                                <select name="type" id="txTypeSelect" required class="input" onchange="renderIconGrid(this.value)">
+                                    <option value="支出">支出</option>
+                                    <option value="收入">收入</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="text-xs text-stone-500 block mb-1">選擇項目分類</label>
+                        <input type="hidden" name="category" id="hiddenCategoryInput" required value="餐飲食宿" />
+                        <div id="iconGridContainer" class="grid grid-cols-4 gap-2 mb-4"></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">交易金額</label>
+                                <input name="amount" type="number" step="1" min="1" required placeholder="金額" class="input" />
+                            </div>
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">交易日期</label>
+                                <input name="date" type="date" required class="input" />
+                            </div>
+                        </div>
+                        <input name="memo" placeholder="輸入原因備註 (選填)" class="input" />
+                        <button class="btn bg-stone-700 hover:bg-stone-800 w-full mt-1">確認送出日常記帳</button>
+                    </form>
+
+                    <form id="transferForm" class="action-form hidden">
+                        <div class="grid grid-cols-2 gap-2 mb-1">
+                            <div><label class="text-xs text-stone-500">來源帳戶 (轉出)</label><select name="from_account_id" required class="input account-select mt-1"></select></div>
+                            <div><label class="text-xs text-stone-500">目的帳戶 (轉入)</label><select name="to_account_id" required class="input account-select mt-1"></select></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">轉移金額</label>
+                                <input name="amount" type="number" step="1" min="1" required placeholder="金額" class="input" />
+                            </div>
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">轉帳日期</label>
+                                <input name="date" type="date" required class="input" />
+                            </div>
+                        </div>
+                        <input name="memo" placeholder="轉帳備註原因 (選填)" class="input" />
+                        <button class="btn bg-amber-800 hover:bg-amber-900 w-full mt-1">執行金流互相轉帳</button>
+                    </form>
+                </div>
+
+                <form id="stockForm" class="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="font-bold text-sm mb-3 text-amber-900 tracking-wide">📈 投資買賣 (代號請輸入純數字如：6116)</h2>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">交割帳戶</label>
+                                <select name="account_id" required class="input account-select"></select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">交易型態</label>
+                                <select name="type" required class="input">
+                                    <option value="買進">買進</option>
+                                    <option value="賣出">賣出</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="text-xs text-stone-500 block mb-1">標的名單代號</label>
+                        <input name="stock_code" required placeholder="例如：6116、2330" class="input" />
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">成交股數</label>
+                                <input name="shares" type="number" step="0.0001" min="0.0001" required placeholder="股數" class="input" />
+                            </div>
+                            <div>
+                                <label class="text-xs text-stone-500 block mb-1">成交單價 (參考)</label>
+                                <input name="price" type="number" step="0.01" min="0" required placeholder="券商成交均價" class="input" />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs text-orange-700 block mb-1 font-bold">✨ 券商 App 實際交割總金額 (含稅費，成本以此為準)</label>
+                            <input name="total_cost" type="number" step="1" min="1" required placeholder="買進填扣款額；賣出填入帳額" class="input border-orange-300" />
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-stone-500 block mb-1">交易日期</label>
+                            <input name="date" type="date" required class="input" />
+                        </div>
+                    </div>
+                    <button class="btn bg-amber-800 hover:bg-amber-900 w-full mt-2">紀錄進場投資明細</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="page-history" class="hidden bg-white border border-stone-200 rounded-2xl p-4 shadow-sm">
+            <div class="mb-4 flex flex-col gap-3 border-b border-stone-100 pb-4">
+                <h2 class="font-bold text-base text-amber-800">📅 流水帳</h2>
+                <div class="grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end bg-stone-50 p-2 rounded-xl border border-stone-200">
+                    <label class="text-[11px] font-bold text-stone-500">
+                        起始日期
+                        <input type="date" id="historyFilterStart" onchange="filterHistoryByRange()" class="mt-1 w-full bg-white text-xs rounded-lg border border-stone-300 px-2 py-2 text-stone-800 font-mono" />
+                    </label>
+                    <label class="text-[11px] font-bold text-stone-500">
+                        結束日期
+                        <input type="date" id="historyFilterEnd" onchange="filterHistoryByRange()" class="mt-1 w-full bg-white text-xs rounded-lg border border-stone-300 px-2 py-2 text-stone-800 font-mono" />
+                    </label>
+                    <button onclick="clearDateFilter()" class="text-xs bg-stone-200 text-stone-700 px-3 py-2 rounded-lg hover:bg-stone-300">顯示全部</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto -mx-4 px-4">
+                <table class="w-full text-xs sm:text-sm text-left text-stone-700 min-w-[650px]">
+                    <thead class="text-[11px] bg-stone-100 text-stone-600 border-b border-stone-200">
+                        <tr>
+                            <th class="py-2.5 px-2">日期</th>
+                            <th class="py-2.5 px-2">帳戶</th>
+                            <th class="py-2.5 px-2">類型</th>
+                            <th class="py-2.5 px-2">消費分類 / 備註</th>
+                            <th class="py-2.5 px-2 text-right">金額</th>
+                            <th class="py-2.5 px-2 text-center">管理</th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalHistoryTable" class="divide-y divide-stone-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-settings" class="hidden grid gap-4 lg:grid-cols-[360px_1fr]">
+            <div class="space-y-4">
+                <form id="accountForm" class="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <h2 class="font-bold text-sm text-amber-800 mb-3">⚙️ 新增帳戶</h2>
+                    <label class="text-xs text-stone-500 block mb-1">帳戶名稱</label>
+                    <input id="setting-account-name" placeholder="如：台新玫瑰卡、富邦證券戶" class="input" />
+                    <label class="text-xs text-stone-500 block mb-1">帳戶類型</label>
+                    <select id="setting-account-type" class="input">
+                        <option value="現金">👛 現金 / 銀行戶頭 / 信用卡</option>
+                        <option value="證券">📈 證券投資 (交割戶)</option>
+                    </select>
+                    <label class="text-xs text-stone-500 block mb-1">目前金額</label>
+                    <input id="setting-account-balance" type="number" value="0" class="input font-mono" />
+                    <button class="btn bg-stone-700 hover:bg-stone-800 w-full">新增帳戶</button>
+                </form>
+
+                <section class="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <h2 class="font-bold text-sm text-amber-800 mb-3">💬 LINE 立即推播</h2>
+                    <label class="text-xs text-stone-500 block mb-1">傳送對象</label>
+                    <select id="line-immediate-recipient" class="input">
+                        <option value="me">我</option>
+                        <option value="husband">老公</option>
+                    </select>
+                    <label class="text-xs text-stone-500 block mb-1">輸入要立刻傳送的訊息</label>
+                    <textarea id="line-immediate-message" placeholder="例如：今天記得記帳，順便看一下資產總水位。" class="input h-24 resize-none"></textarea>
+                    <button onclick="sendLineMessage()" class="btn bg-amber-800 hover:bg-amber-900 w-full">立即發送到 LINE</button>
+                </section>
+
+                <section class="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <h2 class="font-bold text-sm text-amber-800">💳 新增固定提醒</h2>
+                        <label class="flex items-center gap-1.5 text-xs text-stone-500">
+                            <input id="reminder-enabled" type="checkbox" class="accent-amber-800" checked />
+                            啟用
+                        </label>
+                    </div>
+                    <label class="text-xs text-stone-500 block mb-1">提醒名稱</label>
+                    <input id="reminder-name" placeholder="例如：玉山卡費、台新卡費" class="input" />
+                    <label class="text-xs text-stone-500 block mb-1">傳送對象</label>
+                    <select id="reminder-recipient" class="input">
+                        <option value="me">我</option>
+                        <option value="husband">老公</option>
+                    </select>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-stone-500 block mb-1">每月幾號</label>
+                            <input id="reminder-day" type="number" min="1" max="31" value="25" class="input font-mono" />
+                        </div>
+                        <div>
+                            <label class="text-xs text-stone-500 block mb-1">時間</label>
+                            <input id="reminder-time" type="time" value="21:30" class="input font-mono" />
+                        </div>
+                    </div>
+                    <label class="text-xs text-stone-500 block mb-1">固定提醒內容</label>
+                    <textarea id="reminder-message" placeholder="例如：今天記得繳玉山卡費。" class="input h-24 resize-none"></textarea>
+                    <button onclick="saveLineReminder()" class="btn bg-stone-700 hover:bg-stone-800 w-full">新增提醒</button>
+                    <button id="reminder-cancel-edit" onclick="cancelReminderEdit()" class="hidden mt-2 w-full rounded-xl bg-stone-200 px-3 py-2 text-xs font-bold text-stone-700">取消編輯</button>
+                </section>
+            </div>
+
+            <section class="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold text-sm text-stone-700">LINE 固定提醒清單</h2>
+                    <span class="text-[10px] text-stone-400">每筆可單獨控管</span>
+                </div>
+                <div id="lineReminderList" class="space-y-2 mb-5"></div>
+
+                <div class="flex items-center justify-between mb-3 border-t border-stone-100 pt-4">
+                    <h2 class="font-bold text-sm text-stone-700">帳戶管理</h2>
+                    <span class="text-[10px] text-stone-400">修改名稱、金額或刪除帳戶</span>
+                </div>
+                <div id="settingsAccountList" class="space-y-2"></div>
+            </section>
+        </div>
+
     </main>
 
-    <div id="historyModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 p-4">
-        <div class="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div class="mb-4 flex items-center justify-between">
-                <h3 id="modalTitle" class="text-xl font-bold text-blue-400">帳戶明細歷史</h3>
-                <button onclick="closeModal()" class="rounded-lg bg-slate-800 px-3 py-1 hover:bg-slate-700">關閉</button>
-            </div>
-            <div id="modalContent" class="max-h-[450px] overflow-y-auto space-y-2 pr-2 text-sm"></div>
-        </div>
-    </div>
-
-    <div id="toast" class="fixed bottom-5 left-1/2 hidden -translate-x-1/2 rounded-xl px-4 py-3 text-sm text-white shadow-xl z-50"></div>
+    <div id="toast" class="fixed bottom-6 left-1/2 hidden -translate-x-1/2 rounded-xl px-4 py-3 text-xs text-white shadow-xl z-50 duration-300"></div>
 
     <script>
-        const fmt = n => "$" + Number(n || 0).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        let accounts = [], stocks = [];
-
-        const categories = {
-            "支出": ["餐飲伙食", "購物治裝", "生活雜費", "居住房租", "交通出行", "休閒娛樂", "投資出款", "其他支出"],
-            "收入": ["薪資收入", "投資理財", "獎金紅包", "副業收入", "其他收入"]
+        const fmt = (n, decimals = 0) => {
+            const num = Number(n || 0);
+            return "$" + num.toLocaleString("zh-TW", {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
         };
 
-        function updateCategories(type) {
-            const sel = document.getElementById("categorySelect");
-            sel.innerHTML = categories[type].map(c => `<option value="${c}">${c}</option>`).join("");
+        let accounts = [], stocks = [], globalHistory = [], lineReminders = [];
+        let chartA = null, chartC = null;
+        let selectedDateRange = { start: "", end: "" };
+        let editingAccountId = null; 
+        let editingReminderId = null;
+        let editingHistoryKey = null;
+        let viewMode = "cost"; 
+
+        const iconConfig = {
+            "支出": [
+                { label: "餐飲食宿", icon: "🍔" }, { label: "購物治裝", icon: "👗" },
+                { label: "生活雜費", icon: "🏠" }, { label: "保險醫療", icon: "🏥" },
+                { label: "交通出行", icon: "🚗" }, { label: "休閒娛樂", icon: "🎉" },
+                { label: "投資出款", icon: "📉" }, { label: "其他支出", icon: "💸" }
+            ],
+            "收入": [
+                { label: "薪資收入", icon: "💰" }, { label: "投資獲利", icon: "📈" },
+                { label: "獎金紅包", icon: "🧧" }, { label: "其他收入", icon: "✨" }
+            ]
+        };
+
+        async function submitAccountForm(e) {
+            e.preventDefault();
+            const name = document.getElementById("setting-account-name").value.trim();
+            const type = document.getElementById("setting-account-type").value;
+            const balance = Math.round(Number(document.getElementById("setting-account-balance").value || 0));
+            if (!name) { toast("名稱不能留空唷！", false); return; }
+            const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, type, balance }) });
+            if(res.ok) {
+                e.target.reset();
+                document.getElementById("setting-account-balance").value = 0;
+                loadAllData();
+                toast("全新帳戶建立成功！✨");
+            }
         }
 
-        async function request(url, options) {
-            const res = await fetch(url, options);
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || "操作失敗");
-            return data;
+        async function fetchLatestTwsePrices() {
+            toast("📡 正連線 TWSE 抓取看盤價中...");
+            try {
+                const res = await fetch("/api/stocks/update-market-prices", { method: "POST" });
+                const data = await res.json();
+                if(res.ok) {
+                    toast(`🔮 串接成功！已同步更新 ${data.updated} 檔持股看盤價！`);
+                    viewMode = "market"; 
+                    loadAllData();
+                } else {
+                    toast("TWSE API連線不穩，請晚點再試一次", false);
+                }
+            } catch(e) {
+                toast("連線失敗", false);
+            }
+        }
+
+        function toggleViewMode() {
+            viewMode = (viewMode === "cost") ? "market" : "cost";
+            render();
+            toast(`已轉換為：${viewMode === "cost" ? "購買成本計算" : "看盤價現值計算"}`);
+        }
+
+        function switchMainTab(target) {
+            ['dashboard', 'action', 'history', 'settings'].forEach(p => {
+                document.getElementById(`page-${p}`).classList.add('hidden');
+                document.getElementById(`nav-${p}`).className = "py-2.5 text-center text-xs sm:text-sm font-bold rounded-xl transition text-stone-500 hover:bg-stone-50";
+            });
+            document.getElementById(`page-${target}`).classList.remove('hidden');
+            document.getElementById(`nav-${target}`).className = "py-2.5 text-center text-xs sm:text-sm font-bold rounded-xl transition bg-amber-800 text-white";
+        }
+
+        function switchSubForm(formId) {
+            document.querySelectorAll('.action-form').forEach(f => f.classList.add('hidden'));
+            document.getElementById('tab-f-tx').classList.remove('active');
+            document.getElementById('tab-f-tf').classList.remove('active');
+            if(formId === 'f-tx') { document.getElementById('transactionForm').classList.remove('hidden'); document.getElementById('tab-f-tx').classList.add('active'); }
+            else { document.getElementById('transferForm').classList.remove('hidden'); document.getElementById('tab-f-tf').classList.add('active'); }
+        }
+
+        function renderIconGrid(type) {
+            const list = iconConfig[type] || iconConfig["支出"];
+            const container = document.getElementById("iconGridContainer");
+            if (!container) return;
+            document.getElementById("hiddenCategoryInput").value = list[0].label;
+            container.innerHTML = list.map((item, idx) => `
+                <button type="button" onclick="selectIconItem(this, '${item.label}')" class="icon-btn ${idx === 0 ? 'selected' : ''}">
+                    <span class="text-2xl">${item.icon}</span>
+                    <span class="text-[11px] text-stone-500 mt-1 truncate w-full text-center">${item.label}</span>
+                </button>
+            `).join("");
+        }
+
+        function selectIconItem(btnElement, labelValue) {
+            document.querySelectorAll(".icon-btn").forEach(el => el.classList.remove("selected"));
+            btnElement.classList.add("selected");
+            document.getElementById("hiddenCategoryInput").value = labelValue;
+        }
+
+        function filterHistoryByRange() {
+            selectedDateRange = {
+                start: document.getElementById("historyFilterStart").value,
+                end: document.getElementById("historyFilterEnd").value
+            };
+            renderHistoryTable();
+        }
+        function clearDateFilter() {
+            selectedDateRange = { start: "", end: "" };
+            document.getElementById("historyFilterStart").value = "";
+            document.getElementById("historyFilterEnd").value = "";
+            renderHistoryTable();
         }
 
         function toast(msg, ok = true) {
-            const el = document.getElementById("toast");
-            el.textContent = msg;
-            el.className = `fixed bottom-5 left-1/2 -translate-x-1/2 rounded-xl px-4 py-3 text-sm text-white shadow-xl ${ok ? "bg-blue-600" : "bg-red-600"}`;
-            el.classList.remove("hidden");
-            setTimeout(() => el.classList.add("hidden"), 2500);
+            const el = document.getElementById("toast"); el.textContent = msg;
+            el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-md z-50 ${ok ? "bg-stone-700" : "bg-red-700"}`;
+            el.classList.remove("hidden"); setTimeout(() => el.classList.add("hidden"), 2200);
         }
 
-        async function loadData() {
+        async function loadAllData() {
             try {
-                [accounts, stocks] = await Promise.all([request("/api/accounts"), request("/api/stocks")]);
-                render();
-            } catch (e) { toast(e.message, false); }
+                const [r1, r2, r3] = await Promise.all([
+                    fetch("/api/accounts").then(r=>r.json()), fetch("/api/stocks").then(r=>r.json()), fetch("/api/global-history").then(r=>r.json())
+                ]);
+                accounts = r1; stocks = r2; globalHistory = r3; render();
+            } catch (e) { toast("同步資料失敗", false); }
         }
 
         function render() {
-            // 三層分類數據計算
-            const walletTotal = accounts.filter(a => a.type === "身上現金").reduce((s, a) => s + Number(a.balance), 0);
-            const bankTotal = accounts.filter(a => a.type === "銀行戶頭").reduce((s, a) => s + Number(a.balance), 0);
-            const stockTotal = stocks.reduce((s, x) => s + Number(x.shares) * Number(x.cost), 0);
+            const walletTotal = accounts.reduce((s, a) => s + Number(a.balance), 0);
+            
+            let stockTotal = 0;
+            if (viewMode === "cost") {
+                stockTotal = stocks.reduce((s, x) => s + (Number(x.shares) * Number(x.cost)), 0);
+                document.getElementById("viewModeLabel").textContent = "(購買成本制)";
+                document.getElementById("viewModeLabel").className = "text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold text-[10px]";
+                document.getElementById("stockCardLabel").textContent = "📈 投資總成本";
+                document.getElementById("viewModeBtn").textContent = "💵 切換成現值評估";
+            } else {
+                stockTotal = stocks.reduce((s, x) => s + (Number(x.shares) * (Number(x.market_price) || Number(x.cost))), 0);
+                document.getElementById("viewModeLabel").textContent = "(看盤價現值)";
+                document.getElementById("viewModeLabel").className = "text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded font-bold text-[10px]";
+                document.getElementById("stockCardLabel").textContent = "🔮 股票當前市值";
+                document.getElementById("viewModeBtn").textContent = "💰 回歸成本評估";
+            }
 
-            document.getElementById("walletTotal").textContent = fmt(walletTotal);
-            document.getElementById("bankTotal").textContent = fmt(bankTotal);
-            document.getElementById("stockTotal").textContent = fmt(stockTotal);
-            document.getElementById("totalAsset").textContent = fmt(walletTotal + bankTotal + stockTotal);
-            document.getElementById("countTotal").textContent = `${accounts.length} / ${stocks.length}`;
+            document.getElementById("walletTotal").textContent = fmt(walletTotal, 0);
+            document.getElementById("stockTotal").textContent = fmt(stockTotal, 0);
+            document.getElementById("netTotal").textContent = fmt(walletTotal + stockTotal, 0);
+            document.getElementById("totalAsset").textContent = fmt(walletTotal + stockTotal, 0);
 
-            // 渲染資產帳戶卡片 (附帶編輯與刪除按鈕)
-            document.getElementById("accountList").innerHTML = accounts.length ? accounts.map(a => `
-                <div class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-4 hover:border-slate-700 transition">
-                    <div class="cursor-pointer flex-1" onclick="showHistory(${a.id}, '${a.name}')">
-                        <p class="font-semibold text-slate-100">${a.name}</p>
-                        <p class="text-xs text-slate-400">${a.type}</p>
+            document.getElementById("accountList").innerHTML = accounts.map(a => {
+                const isNegative = a.balance < 0;
+                return `
+                    <div class="flex items-center justify-between bg-stone-50 p-2 rounded-xl border border-stone-200 text-xs">
+                        <div><p class="font-semibold text-stone-700">${a.name}</p><p class="text-[10px] text-stone-400">${a.type}</p></div>
+                        <span class="font-bold font-mono ${isNegative ? 'text-rose-600':'text-amber-900'}">${a.balance < 0 ? '-' : ''}${fmt(Math.abs(a.balance), 0)}</span>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <p class="font-bold text-blue-300">${fmt(a.balance)}</p>
-                        <button onclick="editAccount(${a.id}, '${a.name}', ${a.balance})" class="text-xs text-slate-400 hover:text-blue-400">✏️</button>
-                        <button onclick="deleteAccount(${a.id})" class="text-xs text-slate-400 hover:text-red-400">🗑️</button>
-                    </div>
-                </div>
-            `).join("") : `<p class="p-4 text-slate-500 text-sm">快去右邊新增妳的第一個三層資產帳戶吧！</p>`;
+                `;
+            }).join("") || `<div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-400">尚未建立帳戶，請到設定新增。</div>`;
 
-            // 渲染股票/基金持股
-            document.getElementById("stockList").innerHTML = stocks.length ? stocks.map(s => `
-                <div class="rounded-xl border border-slate-800 bg-slate-950 p-4">
-                    <div class="flex items-center justify-between">
-                        <p class="font-semibold text-amber-300">${s.stock_code}</p>
-                        <p class="text-xs text-slate-400">歸屬：${s.account_name}</p>
-                    </div>
-                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
-                        <p><span class="block text-slate-500">持有份數</span>${Number(s.shares).toLocaleString()}</p>
-                        <p><span class="block text-slate-500">平均成本</span>${fmt(s.cost)}</p>
-                        <p><span class="block text-slate-500">總成本現值</span>${fmt(s.shares * s.cost)}</p>
-                    </div>
-                </div>
-            `).join("") : `<p class="p-4 text-slate-500 text-sm">目前尚無股票或基金投資庫存。</p>`;
+            renderSettingsAccounts();
 
-            // 更新所有下拉帳戶選單
-            document.querySelectorAll(".account-select").forEach(sel => {
-                const current = sel.value;
-                sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.name} (${a.type})</option>`).join("");
-                if (current) sel.value = current;
-            });
-        }
-
-        // 修改帳戶名稱或餘額
-        async function editAccount(id, oldName, oldBalance) {
-            const newName = prompt("請輸入新的帳戶名稱：", oldName);
-            if (!newName) return;
-            const newBalance = prompt("請輸入新的帳戶金額：", oldBalance);
-            if (newBalance === null || isNaN(newBalance)) return;
-
-            try {
-                await request(`/api/accounts/${id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: newName, balance: Number(newBalance) })
-                });
-                toast("修改成功！");
-                loadData();
-            } catch (e) { toast(e.message, false); }
-        }
-
-        // 刪除帳戶
-        async function deleteAccount(id) {
-            if (!confirm("親愛的，確定要刪除這個帳戶嗎？\n這會連帶刪除該帳戶的所有記帳與轉帳紀錄喔！")) return;
-            try {
-                await request(`/api/accounts/${id}`, { method: "DELETE" });
-                toast("帳戶已安全移除");
-                loadData();
-            } catch (e) { toast(e.message, false); }
-        }
-
-        // 顯示單一帳戶的獨立明細彈窗
-        async function showHistory(id, name) {
-            try {
-                const history = await request(`/api/accounts/${id}/history`);
-                document.getElementById("modalTitle").textContent = `👛 ${name} — 專屬明細歷史`;
+            document.getElementById("stockList").innerHTML = stocks.map(s => {
+                const livePrice = Number(s.market_price) || Number(s.cost);
+                const totalCost = Number(s.shares) * Number(s.cost);
+                const currentMarketValue = Number(s.shares) * livePrice;
+                const profit = currentMarketValue - totalCost;
+                const roi = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(2) : "0.00";
                 
-                const content = history.length ? history.map(h => {
-                    let typeColor = "text-red-400";
-                    if (h.type === "收入" || h.type === "轉入") typeColor = "text-emerald-400";
+                const profitBg = profit >= 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
+                const quoteSource = s.market_price_source || "手動成本價";
+                const quoteTime = [s.market_price_date, s.market_price_time].filter(Boolean).join(" ");
+                
+                return `
+                    <tr class="hover:bg-stone-50 transition text-xs border-b border-stone-100">
+                        <td class="py-3 px-3">
+                            <span class="font-bold text-stone-800 block">📌 ${s.stock_code}</span>
+                            <span class="text-[10px] text-stone-400 font-sans block">${s.account_name}</span>
+                        </td>
+                        <td class="py-3 px-2 text-right font-bold text-stone-600">${Number(s.shares).toLocaleString()} 股</td>
+                        <td class="py-3 px-2 text-right text-stone-500 font-bold">${fmt(s.cost, 2)}</td>
+                        <td class="py-3 px-2 text-right">
+                            <span class="font-bold text-orange-700">${fmt(livePrice, 2)}</span>
+                            <span class="block text-[10px] text-stone-400 font-sans mt-0.5">${quoteSource}</span>
+                            ${quoteTime ? `<span class="block text-[10px] text-stone-400 font-sans">${quoteTime}</span>` : ""}
+                        </td>
+                        <td class="py-3 px-2 text-right text-stone-500 font-medium">${fmt(totalCost, 0)}</td>
+                        <td class="py-3 px-2 text-right font-black text-amber-900">${fmt(currentMarketValue, 0)}</td>
+                        <td class="py-3 px-3 text-right">
+                            <span class="inline-block px-2 py-1 rounded-lg text-[11px] font-bold ${profitBg}">
+                                ${profit >= 0 ? '▲' : '▼'} ${fmt(Math.abs(profit), 0)} (${roi}%)
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join("") || `<tr><td colspan="7" class="text-center py-8 text-stone-400 font-sans">目前帳戶內還沒有任何持股資產唷，快去記一筆吧！💎</td></tr>`;
+
+            document.querySelectorAll(".account-select").forEach(sel => {
+                const cur = sel.value; sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("");
+                if (cur) sel.value = cur;
+            });
+
+            renderHistoryTable();
+            renderCharts(walletTotal, stockTotal);
+        }
+
+        function renderSettingsAccounts() {
+            const target = document.getElementById("settingsAccountList");
+            if (!target) return;
+            target.innerHTML = accounts.map(a => {
+                const isNegative = Number(a.balance) < 0;
+                if (editingAccountId === a.id) {
                     return `
-                        <div class="flex items-center justify-between border-b border-slate-800 py-2">
-                            <div>
-                                <span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 mr-2">${h.type}</span>
-                                <span class="font-medium">${h.category}</span>
-                                <span class="text-xs text-slate-500 ml-2">${h.date}</span>
-                                ${h.memo ? `<p class="text-xs text-slate-400 mt-0.5">💬 ${h.memo}</p>` : ''}
+                        <div class="bg-stone-50 p-3 rounded-xl border border-amber-600 text-xs">
+                            <div class="grid gap-2 sm:grid-cols-[1fr_150px_auto]">
+                                <input type="text" id="inline-name-${a.id}" value="${a.name}" class="inline-input" />
+                                <input type="number" id="inline-balance-${a.id}" value="${Math.round(a.balance)}" class="inline-input font-mono" />
+                                <div class="flex gap-1 justify-end">
+                                    <button onclick="saveInlineAccount(${a.id})" class="bg-stone-700 px-2.5 py-1 rounded text-white font-bold">儲存</button>
+                                    <button onclick="cancelInlineEdit()" class="bg-stone-300 px-2.5 py-1 rounded text-stone-700">取消</button>
+                                </div>
                             </div>
-                            <span class="font-bold ${typeColor}">${h.type === "支出" || h.type === "轉出" ? "-" : "+"}${fmt(h.amount)}</span>
                         </div>
                     `;
-                }).join("") : `<p class="text-slate-500 text-center py-4">此帳戶目前尚無任何交易與轉帳明細。</p>`;
-                
-                document.getElementById("modalContent").innerHTML = content;
-                document.getElementById("historyModal").classList.remove("hidden");
-            } catch (e) { toast(e.message, false); }
+                }
+                return `
+                    <div class="flex items-center justify-between gap-3 bg-stone-50 p-3 rounded-xl border border-stone-200 text-xs">
+                        <div class="min-w-0">
+                            <p class="font-semibold truncate text-stone-700">${a.name}</p>
+                            <p class="text-[10px] text-stone-400">${a.type}</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="font-bold font-mono ${isNegative ? 'text-rose-600':'text-amber-900'}">${a.balance < 0 ? '-' : ''}${fmt(Math.abs(a.balance), 0)}</span>
+                            <button onclick="enterInlineEdit(${a.id})" class="rounded-lg bg-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-300">編輯</button>
+                            <button onclick="deleteAccount(${a.id})" class="rounded-lg bg-rose-100 px-2 py-1 text-rose-700 hover:bg-rose-200">刪除</button>
+                        </div>
+                    </div>
+                `;
+            }).join("") || `<div class="rounded-xl border border-stone-200 bg-stone-50 p-4 text-center text-xs text-stone-400">尚未建立帳戶。</div>`;
         }
 
-        function closeModal() { document.getElementById("historyModal").classList.add("hidden"); }
+        function enterInlineEdit(id) { editingAccountId = id; renderSettingsAccounts(); }
+        function cancelInlineEdit() { editingAccountId = null; renderSettingsAccounts(); }
+        async function saveInlineAccount(id) {
+            const name = document.getElementById(`inline-name-${id}`).value.trim();
+            const balance = document.getElementById(`inline-balance-${id}`).value;
+            if (!name) { toast("名稱不能留空唷！", false); return; }
+            const res = await fetch(`/api/accounts/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, balance }) });
+            if(res.ok) { editingAccountId = null; loadAllData(); toast("帳戶資料已更新。"); }
+        }
 
-        // 表單提交處理
-        async function initForm(formId, url) {
-            document.getElementById(formId).addEventListener("submit", async e => {
-                e.preventDefault();
-                const body = Object.fromEntries(new FormData(e.target).entries());
-                try {
-                    await request(url, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(body)
+        function renderHistoryTable() {
+            let list = globalHistory;
+            if (selectedDateRange.start || selectedDateRange.end) {
+                list = globalHistory.filter(h => {
+                    if (selectedDateRange.start && h.date < selectedDateRange.start) return false;
+                    if (selectedDateRange.end && h.date > selectedDateRange.end) return false;
+                    return true;
+                });
+            }
+
+            document.getElementById("globalHistoryTable").innerHTML = list.map(h => {
+                const uniqueKey = `${h.r_type}-${h.id}`;
+                let color = "text-rose-600", prefix = "-";
+                if(h.type === "收入" || h.type === "轉入") { color = "text-emerald-700"; prefix = "+"; }
+
+                if (editingHistoryKey === uniqueKey) {
+                    return `
+                        <tr class="bg-stone-50 border-b border-amber-600">
+                            <td class="py-2 px-1"><input type="date" id="edit-date-${uniqueKey}" value="${h.date}" class="bg-white p-1 rounded border border-stone-300 text-xs w-full text-stone-800 font-mono" /></td>
+                            <td class="py-2 px-1 text-stone-500 font-mono">${h.account_name}</td>
+                            <td class="py-2 px-1"><span class="text-[10px] bg-stone-200 px-1 py-0.5 rounded text-stone-700">${h.type}</span></td>
+                            <td class="py-2 px-1 space-y-1">
+                                <input type="text" id="edit-cat-${uniqueKey}" value="${h.category}" class="inline-input" />
+                                <input type="text" id="edit-memo-${uniqueKey}" value="${h.memo || ''}" class="inline-input mt-1" placeholder="備註" />
+                            </td>
+                            <td class="py-2 px-1"><input type="number" id="edit-amt-${uniqueKey}" value="${h.amount}" class="inline-input font-mono" /></td>
+                            <td class="py-2 px-1 text-center space-x-1">
+                                <button onclick="saveHistoryEdit('${h.r_type}', ${h.id})" class="text-emerald-700 font-bold">儲存</button>
+                                <button onclick="cancelHistoryEdit()" class="text-stone-400">取消</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                return `
+                    <tr class="hover:bg-stone-50 border-b border-stone-100 text-xs">
+                        <td class="py-2.5 px-2 text-stone-400 font-mono">${h.date}</td>
+                        <td class="py-2.5 px-2 font-bold text-stone-700">${h.account_name}</td>
+                        <td class="py-2.5 px-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${h.type.includes('出')?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-800'}">${h.type}</span></td>
+                        <td class="py-2.5 px-2 text-stone-700 font-sans">
+                            <span class="font-semibold text-amber-800">[${h.category}]</span> 
+                            <span class="text-stone-400 italic">${h.memo || ''}</span>
+                        </td>
+                        <td class="py-2.5 px-2 text-right font-bold font-mono ${color}">${prefix}${fmt(h.amount, 0)}</td>
+                        <td class="py-2.5 px-2 text-center space-x-2">
+                            <button onclick="enterHistoryEdit('${uniqueKey}')" class="text-stone-500 hover:text-stone-800">✏️</button>
+                            <button onclick="deleteHistory('${h.r_type}', ${h.id})" class="text-rose-600 hover:text-rose-800">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join("") || `<tr><td colspan="6" class="text-center py-8 text-stone-400 font-sans">沒有找到對應的流水帳紀錄唷。🌿</td></tr>`;
+        }
+
+        function enterHistoryEdit(key) { editingHistoryKey = key; renderHistoryTable(); }
+        function cancelHistoryEdit() { editingHistoryKey = null; renderHistoryTable(); }
+        async function saveHistoryEdit(r_type, id) {
+            const key = `${r_type}-${id}`;
+            const date = document.getElementById(`edit-date-${key}`).value;
+            const category = document.getElementById(`edit-cat-${key}`).value;
+            const memo = document.getElementById(`edit-memo-${key}`).value;
+            const amount = document.getElementById(`edit-amt-${key}`).value;
+            const res = await fetch(`/api/history/${r_type}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date, category, memo, amount }) });
+            if(res.ok) { editingHistoryKey = null; loadAllData(); toast("修正歷史流水帳成功！"); }
+        }
+
+        async function deleteHistory(r_type, id) {
+            if (confirm("確定要刪除這筆帳目紀錄嗎？刪除後對應的持股或資產餘額會一併自動還原回滾唷！")) {
+                const res = await fetch(`/api/history/${r_type}/${id}`, { method: "DELETE" });
+                if(res.ok) { loadAllData(); toast("帳目與庫存還原成功！🗑️"); }
+            }
+        }
+
+        async function deleteAccount(id) {
+            if(confirm("警告：刪除帳戶將會清除該帳戶內的所有關聯投資持股與流水帳！確定要這麼做嗎？")) {
+                const res = await fetch(`/api/accounts/${id}`, { method: "DELETE" });
+                if(res.ok) { loadAllData(); toast("帳戶及其關聯資料已全部清空。"); }
+            }
+        }
+
+        function renderCharts(cash, stock) {
+            const renderLegend = (targetId, labels, values, colors) => {
+                const target = document.getElementById(targetId);
+                if (!target) return;
+                const rows = labels.map((label, idx) => ({
+                    label,
+                    value: Number(values[idx] || 0),
+                    color: colors[idx % colors.length]
+                })).filter(row => row.value !== 0);
+
+                target.innerHTML = rows.length ? rows.map(row => `
+                    <div class="inline-flex max-w-full items-center gap-2 rounded-md bg-white/80 px-2 py-1.5 border border-stone-200">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="h-2.5 w-2.5 rounded-sm shrink-0" style="background:${row.color}"></span>
+                            <span class="truncate font-semibold text-[11px] text-stone-700">${row.label}</span>
+                        </div>
+                        <span class="font-mono font-bold text-[11px] text-stone-700 shrink-0">${fmt(row.value, 0)}</span>
+                    </div>
+                `).join("") : `<div class="rounded-lg bg-white/80 px-2.5 py-3 text-center text-[11px] text-stone-400 border border-stone-200">目前沒有資料</div>`;
+            };
+
+            const ctxA = document.getElementById('chartAsset')?.getContext('2d');
+            const assetLabels = ['現金及銀行', '證券與投資'];
+            const assetData = [cash, stock];
+            const assetColors = ['#a3b19b', '#c8b49e'];
+            renderLegend('assetLegend', assetLabels, assetData, assetColors);
+            if (ctxA) {
+                if (chartA) { chartA.data.datasets[0].data = assetData; chartA.update(); }
+                else {
+                    chartA = new Chart(ctxA, {
+                        type: 'doughnut',
+                        data: { labels: assetLabels, datasets: [{ data: assetData, backgroundColor: assetColors, borderWidth: 0 }] },
+                        options: { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false, cutout: '70%' }
                     });
-                    e.target.reset();
-                    const dInput = e.target.querySelector('[name="date"]');
-                    if (dInput) dInput.value = new Date().toISOString().slice(0, 10);
-                    toast("紀錄成功！");
-                    loadData();
-                } catch (e) { toast(e.message, false); }
-            });
+                }
+            }
+
+            const ctxC = document.getElementById('chartCategory')?.getContext('2d');
+            if (ctxC) {
+                const categories = {};
+                globalHistory.forEach(h => { if(h.type === "支出") categories[h.category] = (categories[h.category] || 0) + Number(h.amount); });
+                const labels = Object.keys(categories); const data = Object.values(categories);
+                const categoryColors = ['#d9c5b2', '#b5a494', '#938574', '#74685a', '#a9b8a4', '#c9d3c4', '#e2af9b', '#d29184'];
+                renderLegend('categoryLegend', labels, data, categoryColors);
+                if (chartC) { chartC.data.labels = labels; chartC.data.datasets[0].data = data; chartC.update(); }
+                else {
+                    chartC = new Chart(ctxC, {
+                        type: 'pie',
+                        data: { labels, datasets: [{ data, backgroundColor: categoryColors }] },
+                        options: { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            }
         }
 
-        // 初始化
-        updateCategories("支出");
-        document.querySelectorAll('[name="date"]').forEach(el => el.value = new Date().toISOString().slice(0, 10));
-        
-        initForm("accountForm", "/api/accounts");
-        initForm("transactionForm", "/api/transactions");
-        initForm("transferForm", "/api/transfers");
-        initForm("stockForm", "/api/stocks");
+        function reminderPayloadFromForm() {
+            return {
+                name: document.getElementById("reminder-name").value.trim(),
+                day_of_month: Number(document.getElementById("reminder-day").value),
+                push_time: document.getElementById("reminder-time").value,
+                message: document.getElementById("reminder-message").value.trim(),
+                recipient: document.getElementById("reminder-recipient").value,
+                enabled: document.getElementById("reminder-enabled").checked ? 1 : 0
+            };
+        }
 
-        loadData();
+        function resetReminderForm() {
+            editingReminderId = null;
+            document.getElementById("reminder-name").value = "";
+            document.getElementById("reminder-day").value = 25;
+            document.getElementById("reminder-time").value = "21:30";
+            document.getElementById("reminder-message").value = "";
+            document.getElementById("reminder-recipient").value = "me";
+            document.getElementById("reminder-enabled").checked = true;
+            document.querySelector("#reminder-message + button").textContent = "新增提醒";
+            document.getElementById("reminder-cancel-edit").classList.add("hidden");
+        }
+
+        async function saveLineReminder() {
+            const payload = reminderPayloadFromForm();
+            if (!payload.name) {
+                toast("請輸入提醒名稱。", false);
+                return;
+            }
+            if (!payload.day_of_month || payload.day_of_month < 1 || payload.day_of_month > 31) {
+                toast("每月日期請輸入 1 到 31。", false);
+                return;
+            }
+            if (!payload.push_time) {
+                toast("請選擇提醒時間。", false);
+                return;
+            }
+            if (!payload.message) {
+                toast("請輸入固定提醒內容。", false);
+                return;
+            }
+
+            try {
+                const url = editingReminderId ? `/api/line-reminders/${editingReminderId}` : "/api/line-reminders";
+                const res = await fetch(url, {
+                    method: editingReminderId ? "PUT" : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    toast(editingReminderId ? "✨ LINE 提醒已更新！" : "✨ LINE 提醒已新增！");
+                    resetReminderForm();
+                    loadLineReminders();
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    toast(data.error || "儲存失敗", false);
+                }
+            } catch (e) { toast("伺服器連線失敗", false); }
+        }
+
+        async function loadLineReminders() {
+            try {
+                const res = await fetch("/api/line-reminders");
+                if (res.ok) {
+                    lineReminders = await res.json();
+                    renderLineReminders();
+                }
+            } catch (e) { console.error("讀取提醒清單失敗", e); }
+        }
+
+        function renderLineReminders() {
+            const target = document.getElementById("lineReminderList");
+            if (!target) return;
+            target.innerHTML = lineReminders.map(r => `
+                <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="font-bold text-stone-800">${r.enabled ? "🟢" : "⚪"} ${r.name}</p>
+                            <p class="mt-0.5 text-stone-500">傳給 ${r.recipient === "husband" ? "老公" : "我"} · 每月 ${r.day_of_month} 號 ${r.push_time}</p>
+                            <p class="mt-1 text-stone-600">${r.message}</p>
+                        </div>
+                        <div class="flex shrink-0 gap-1">
+                            <button onclick="toggleLineReminder(${r.id})" class="rounded-lg bg-white px-2 py-1 text-stone-700 border border-stone-200">${r.enabled ? "停用" : "啟用"}</button>
+                            <button onclick="editLineReminder(${r.id})" class="rounded-lg bg-stone-200 px-2 py-1 text-stone-700">編輯</button>
+                            <button onclick="deleteLineReminder(${r.id})" class="rounded-lg bg-rose-100 px-2 py-1 text-rose-700">刪除</button>
+                        </div>
+                    </div>
+                </div>
+            `).join("") || `<div class="rounded-xl border border-stone-200 bg-stone-50 p-4 text-center text-xs text-stone-400">尚未新增固定提醒。</div>`;
+        }
+
+        function editLineReminder(id) {
+            const r = lineReminders.find(x => x.id === id);
+            if (!r) return;
+            editingReminderId = id;
+            document.getElementById("reminder-name").value = r.name;
+            document.getElementById("reminder-day").value = r.day_of_month;
+            document.getElementById("reminder-time").value = r.push_time;
+            document.getElementById("reminder-message").value = r.message;
+            document.getElementById("reminder-recipient").value = r.recipient || "me";
+            document.getElementById("reminder-enabled").checked = Number(r.enabled) === 1;
+            document.querySelector("#reminder-message + button").textContent = "儲存修改";
+            document.getElementById("reminder-cancel-edit").classList.remove("hidden");
+        }
+
+        function cancelReminderEdit() { resetReminderForm(); }
+
+        async function toggleLineReminder(id) {
+            const r = lineReminders.find(x => x.id === id);
+            if (!r) return;
+            const payload = { name: r.name, day_of_month: r.day_of_month, push_time: r.push_time, message: r.message, recipient: r.recipient || "me", enabled: Number(r.enabled) === 1 ? 0 : 1 };
+            const res = await fetch(`/api/line-reminders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            if (res.ok) { loadLineReminders(); toast(payload.enabled ? "提醒已啟用。" : "提醒已停用。"); }
+        }
+
+        async function deleteLineReminder(id) {
+            if (!confirm("確定要刪除這筆 LINE 固定提醒嗎？")) return;
+            const res = await fetch(`/api/line-reminders/${id}`, { method: "DELETE" });
+            if (res.ok) { loadLineReminders(); toast("提醒已刪除。"); }
+        }
+
+        async function sendLineMessage() {
+            const recipient = document.getElementById("line-immediate-recipient").value;
+            const message = document.getElementById("line-immediate-message").value.trim();
+            
+            if (!message) { toast("妳還沒輸入要傳送的文字唷！", false); return; }
+            
+            toast("🚀 訊息發送中...");
+            try {
+                const res = await fetch("/api/send-line-message", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message, recipient })
+                });
+                if (res.ok) { 
+                    toast("🔔 訊息成功透過 Messaging API 傳送囉！"); 
+                    document.getElementById("line-immediate-message").value = ""; 
+                } else { 
+                    const data = await res.json().catch(() => ({}));
+                    toast(data.error || "發送失敗，請確認後端 Token / User ID 是否正確", false); 
+                }
+            } catch (e) { 
+                toast("伺服器連線失敗", false); 
+            }
+        }
+
+        document.getElementById("transactionForm").onsubmit = async (e) => {
+            e.preventDefault(); const body = Object.fromEntries(new FormData(e.target));
+            const res = await fetch("/api/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if(res.ok) { e.target.reset(); renderIconGrid("支出"); loadAllData(); toast("日常帳目成功登錄！💸"); }
+        };
+
+        document.getElementById("transferForm").onsubmit = async (e) => {
+            e.preventDefault(); const body = Object.fromEntries(new FormData(e.target));
+            const res = await fetch("/api/transfers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if(res.ok) { e.target.reset(); loadAllData(); toast("帳戶金流轉移完畢！🔄"); }
+            else { toast(await res.text(), false); }
+        };
+
+        document.getElementById("accountForm").onsubmit = submitAccountForm;
+
+        document.getElementById("stockForm").onsubmit = async (e) => {
+            e.preventDefault(); const body = Object.fromEntries(new FormData(e.target));
+            const res = await fetch("/api/stocks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if(res.ok) { e.target.reset(); loadAllData(); toast("旗艦投資庫存明細已更新！📈"); }
+        };
+
+        const today = new Date().toISOString().slice(0, 10);
+        document.querySelectorAll('input[type="date"]').forEach(el => { if(!el.id.includes("Filter")) el.value = today; });
+        renderIconGrid("支出");
+        
+        // 初始化載入
+        (async () => {
+            await loadAllData();
+            await loadLineReminders();
+        })();
     </script>
 </body>
 </html>
