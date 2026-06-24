@@ -465,6 +465,7 @@ demo-assets.db
 
 ## 注意事項
 
-- `server.js` 目前包含 LINE token，請不要公開上傳到公開 repo。
+- 請勿將包含金鑰、token 或個人資料的原始碼與資料庫公開上傳。
+- 正式部署建議將 LINE 與 Fugle 等金鑰改由環境變數或私有設定檔管理。
 - ngrok 網址重開後通常會變，LINE Developers 的 Webhook URL 也要同步更新。
 - LINE Push API 需要接收者已加官方帳號好友。
