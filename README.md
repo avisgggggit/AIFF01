@@ -1,24 +1,49 @@
 # AIFF Asset Tracker
 
-一個本機使用的資產、記帳、股票看盤與 LINE 提醒系統。前端是單頁 `index.html`，後端是 Express + SQLite，資料存在 `assets.db`。
+一個本機使用的資產、記帳、股票看盤與 LINE 提醒系統。前端是單頁 `index.html`，後端是 Express + SQLite，正式資料存在 `assets.db`，Demo 資料存在 `demo-assets.db`。
 
 ## 功能
 
-- 資產總覽：現金/銀行、證券投資、總資產。
+- Dashboard：總資產、現金/銀行、證券投資、資產配置、當月消費類別佔比、預算水庫進度。
 - 快速記帳：日常收入支出、帳戶轉帳。
 - 投資紀錄：買進/賣出股票，成本以券商實際交割總金額為準。
-- 台股看盤價：優先抓 TWSE MIS 看盤價，失敗時退回 TWSE 最新收盤價。
-- 流水帳：查看、修改、刪除歷史紀錄。
+- 台股看盤價：優先抓 Fugle 富果即時行情，失敗時依序退回 TWSE MIS 與 TWSE 最新收盤價。
+- 分時圖：列出目前持有台股/ETF 的當日 1 分 K，漲紅跌綠，漲跌幅以最新價對昨收計算。
+- 流水帳：查看、篩選、修改、刪除歷史紀錄，可依日期區間、帳戶、類型、分類、tag 篩選。
 - 帳戶設定：新增、編輯、刪除資產帳戶。
+- 記帳類別管理：可在設定頁新增、編輯、刪除收入/支出類別，會同步快速記帳與 LINE。
+- 預算水庫：可建立多個預算群組，把多個支出分類綁在同一個月預算額度中控管。
 - LINE 推播：
   - 立即傳訊息。
   - 多筆每月固定提醒。
   - 每筆提醒可指定傳給「我」或「老公」。
   - 每筆提醒可單獨啟用、停用、編輯、刪除。
 - LINE 快速記帳：
-  - 在官方帳號輸入「記帳」。
-  - 用按鈕選擇帳戶、支出分類。
+  - 在官方帳號輸入 `1` 紀錄支出，輸入 `2` 紀錄收入。
+  - 用按鈕選擇帳戶、分類。
   - 輸入金額後直接寫入系統流水帳。
+
+## Demo 環境
+
+正式頁：
+
+```text
+http://localhost:8080/
+```
+
+Demo 頁：
+
+```text
+http://localhost:8080/demo
+```
+
+差異：
+
+- 正式頁使用 `assets.db`。
+- Demo 頁使用 `demo-assets.db`。
+- Demo 頁 title 與畫面提示會標示 DEMO，避免和正式資料混淆。
+- Demo 的 LINE webhook 路徑可用 `/demo/webhook/line`，資料會寫入 demo DB。
+- Demo 的 LINE 推播會強制傳給 `me`，避免 demo 時誤傳給其他人。
 
 ## 安裝
 
@@ -113,25 +138,35 @@ ngrok http 8080
 在 LINE 官方帳號輸入：
 
 ```text
-記帳
+1
 ```
+
+代表紀錄支出。
+
+輸入：
+
+```text
+2
+```
+
+代表紀錄收入。
+
+如果輸入「記帳」，系統會提示你選 `1` 或 `2`。
 
 目前流程是：
 
 ```text
-選帳戶 -> 選支出分類 -> 輸入金額 -> 寫入 transactions 並更新 accounts.balance
+輸入 1 或 2 -> 選帳戶 -> 選分類 -> 輸入金額 -> 寫入 transactions 並更新 accounts.balance
 ```
-
-這邊刻意固定成「支出」，所以 LINE 記帳不會再多問收入/支出。收入仍然可以從網頁的「快速記帳」新增。
 
 寫入資料時：
 
-- `transactions.type` 固定為 `支出`
+- `transactions.type` 由 LINE 輸入決定：`1` 是 `支出`，`2` 是 `收入`
 - `transactions.category` 來自 LINE 選的分類
 - `transactions.amount` 來自最後輸入的金額
 - `transactions.date` 使用台北時區今天日期
 - `transactions.memo` 固定為 `LINE 快速記帳`
-- `accounts.balance` 會扣掉該筆支出金額
+- `accounts.balance` 會依照收支型態扣款或加款
 
 LINE 每個使用者目前走到哪一步，存在：
 
@@ -143,35 +178,40 @@ line_tx_sessions
 
 ### 新增 LINE 分類選項
 
-分類選項在 `server.js` 開頭的 `LINE_TX_CATEGORIES`：
+LINE 快速記帳的分類不是寫死在程式碼常數中，而是讀 SQLite 的 `categories` 資料表。
 
-```js
-const LINE_TX_CATEGORIES = {
-    "支出": ["餐飲食宿", "購物治裝", "生活雜費", "保險醫療", "交通出行", "休閒娛樂", "投資出款", "其他支出"],
-    "收入": ["薪資收入", "投資獲利", "獎金紅包", "其他收入"]
-};
+要新增或修改分類，直接到前端：
+
+```text
+設定 -> 新增記帳類別 / 記帳類別管理
 ```
 
-LINE 快速記帳目前只使用：
+支出與收入分類都會同步影響：
 
-```js
-LINE_TX_CATEGORIES["支出"]
-```
+- 快速記帳頁的分類按鈕。
+- LINE 官方帳號快速記帳分類按鈕。
+- 預算水庫可勾選的支出分類。
 
-所以要新增 LINE 按鈕，只要把分類加到 `支出` 陣列，例如：
+注意：LINE quick reply 一次最多 13 個按鈕。若分類很多，目前後端會取前 12 個分類按鈕；超過時需要再做分頁或多一層分類群組。
 
-```js
-"支出": ["餐飲食宿", "購物治裝", "生活雜費", "保險醫療", "交通出行", "休閒娛樂", "投資出款", "訂閱服務", "其他支出"]
-```
+### 修改分類名稱
 
-注意：LINE quick reply 一次最多 13 個按鈕。分類超過 13 個時，需要再做分頁或多一層分類群組。
+在設定頁編輯分類名稱時，後端會同步更新相關資料：
+
+- `transactions.category`
+- `line_tx_sessions.category`
+- 舊版單分類預算 `budgets.category`
+- 預算水庫 `budget_groups.categories`
+
+例如把 `家庭支出` 改為 `固定支出` 後，舊流水帳也會一起搬到新名稱，避免新增記帳和流水帳出現不同分類。
 
 ### 新增 LINE 流程層級
 
 LINE 快速記帳的主要流程在 `server.js` 這幾個 function：
 
-- `startLineAccounting`：開始流程，列出帳戶按鈕。
-- `askLineExpenseCategory`：選完帳戶後，列出支出分類按鈕。
+- `promptLineAccountingMode`：提示 `1` 是支出、`2` 是收入。
+- `startLineAccounting`：依照 `1` 或 `2` 設定收支型態，並列出帳戶按鈕。
+- `askLineCategory`：選完帳戶後，依照收支型態列出分類按鈕。
 - `askLineAmount`：選完分類後，要求輸入金額。
 - `finishLineAmount`：收到金額後，寫入資料庫並更新帳戶餘額。
 - `handleLineWebhook`：接 LINE webhook，判斷使用者按了哪個按鈕或輸入了什麼文字。
@@ -179,7 +219,7 @@ LINE 快速記帳的主要流程在 `server.js` 這幾個 function：
 如果要增加一層，例如：
 
 ```text
-選帳戶 -> 選付款方式 -> 選支出分類 -> 輸入金額
+輸入 1 或 2 -> 選帳戶 -> 選付款方式 -> 選分類 -> 輸入金額
 ```
 
 大方向是：
@@ -201,34 +241,143 @@ quickReplyItem("信用卡", "action=line_payment&method=%E4%BF%A1%E7%94%A8%E5%8D
 
 ```js
 } else if (action === "line_payment") {
-    await askLineExpenseCategory(userId, replyToken, session.account_id);
+    await askLineCategory(userId, replyToken, session.account_id);
 }
 ```
 
 如果只是想在流程中多問一個「文字輸入」欄位，例如備註，可以讓 session 的 `step` 變成 `memo`，在收到文字訊息時先存 memo，再進到下一步。現在的金額輸入就是同樣模式。
 
-## 股票看盤價
+## 台股看盤價與基金記錄
 
-按前端「更新看盤價」時，後端會呼叫：
+投資買賣支援股票、ETF 與基金。台股/ETF 請輸入台股代號；一般股票是純數字，槓桿/反向/債券 ETF 可能會有英文字尾，例如：
 
-- TWSE MIS：盤中看盤價。
-- TWSE OpenAPI `STOCK_DAY_ALL`：MIS 失敗時使用最新收盤價。
+```text
+2330
+0050
+6116
+00631L
+00632R
+00720B
+```
 
-資料會寫入股票庫存的：
+基金可以輸入自己的基金代號，例如：
 
-- `market_price`
-- `market_price_source`
-- `market_price_date`
-- `market_price_time`
+```text
+A36004
+```
+
+按前端「更新即時行情」時，後端會更新台股/ETF 代號，包含 `00631L` 這種英文字尾 ETF。像 `A36004` 這種字母開頭的基金代號會保留為手動價格，不會被拿去行情 API 查詢。
+
+台股行情來源順序：
+
+1. Fugle 富果行情 API：優先取得盤中即時報價。
+2. TWSE MIS：Fugle 沒設定或部分股票讀取失敗時備援。
+3. TWSE OpenAPI `STOCK_DAY_ALL`：前兩者都沒有價格時，使用最新收盤價。
+
+Fugle 需要 API key。啟動 server 前設定：
+
+```bash
+FUGLE_API_KEY=你的富果APIKEY npm start
+```
+
+或：
+
+```bash
+FUGLE_API_KEY=你的富果APIKEY node server.js
+```
+
+如果沒有設定 `FUGLE_API_KEY`，系統仍會照原本 TWSE 備援流程更新。
+
+## Dashboard
+
+Dashboard 上方顯示：
+
+- 總資產。
+- 現金 / 銀行總額。
+- 股票當前市值或投資總成本，取決於目前檢視模式。
+
+上方按鈕：
+
+- `更新即時行情`：呼叫後端行情 API，更新股票/ETF 的看盤價。
+- `切換成現值評估` / `回歸成本評估`：切換投資部位用看盤價或成本價計算。
+
+原本的手動「刷新」按鈕已移除。若需要重新同步資料，可以直接重新整理瀏覽器頁面；在網頁內新增/修改資料後，系統通常會自動重新讀取資料。
+
+### 當月消費類別佔比
+
+Dashboard 的「當月消費類別佔比」只統計當月日常支出，會排除 `投資出款`，避免投資買進金額壓過一般生活消費。
+
+點擊圓餅圖上的分類色塊會開啟明細視窗，顯示該分類當月流水帳：
+
+- 日期
+- 備註/項目
+- 金額
+- 帳戶
+
+明細視窗底部有 `🔍 前往流水帳進行編輯`，會自動切到流水帳 tab，並套用本月日期區間、支出類型與該分類篩選。
+
+## 預算水庫
+
+預算水庫是「多個支出分類共用一個月預算」的設定。
+
+入口：
+
+```text
+設定 -> 預算水庫設定
+```
+
+每個預算群組包含：
+
+- 群組名稱，例如 `💋 玩樂與美麗水庫`
+- 每月總額度
+- 綁定的支出分類清單
+
+Dashboard 會依照每個預算水庫加總當月支出：
+
+```text
+執行率 = 群組內所有分類的當月支出合計 / 群組每月總額度
+```
+
+進度條顏色：
+
+- 80% 以下：琥珀色。
+- 80% 到 100%：橘色。
+- 超過 100%：霧紅色，顯示 `⚠️ 群組已超支！`。
+
+## 當日分時圖
+
+前端有一個「分時圖」大 tab，會列出目前持有的台股/ETF 當日 1 分 K 分時線圖。
+
+資料來源：
+
+```text
+Fugle 富果行情 API /stock/intraday/candles/{symbol}?timeframe=1
+```
+
+這個功能需要 `FUGLE_API_KEY`。基金或非台股代號，例如 `A36004`，不會顯示分時圖，會列在略過清單中。
+
+分時圖右上角的漲跌幅表示「今日漲跌幅」，使用：
+
+```text
+(最新價 - 昨收價) / 昨收價
+```
+
+若 Fugle 當下沒有回傳昨收價，才會 fallback 用開盤價。顏色採台股習慣：漲紅、跌綠。
 
 假日或非交易時間看到的價格通常會是最近交易日最後價格。
 
+基金價格目前用手動方式記錄：
+
+- 買進/申購時，`成交單價 / 基金淨值` 可填當時淨值。
+- `實際交割 / 申購總金額` 填實際扣款總額，系統會用這個計算成本。
+- 若基金之後要更新現值，可以再補一個「手動更新標的價格」功能，或串接券商/基金平台 API。
+
 ## 投資成本計算
 
-買進股票時，系統不以 `成交單價 * 股數` 作為成本，而是以你輸入的：
+買進股票、ETF 或基金時，系統不以 `成交單價 * 股數` 作為成本，而是以你輸入的：
 
 ```text
-券商 App 實際交割總金額
+實際交割 / 申購總金額
 ```
 
 作為真實成本。這樣可以包含手續費與其他交易成本。
@@ -236,7 +385,7 @@ quickReplyItem("信用卡", "action=line_payment&method=%E4%BF%A1%E7%94%A8%E5%8D
 新買進：
 
 ```text
-成本均價 = 實際交割總金額 / 股數
+成本均價 = 實際交割 / 申購總金額 / 股數或單位數
 ```
 
 加碼買進：
@@ -261,12 +410,25 @@ quickReplyItem("信用卡", "action=line_payment&method=%E4%BF%A1%E7%94%A8%E5%8D
 - `POST /api/transfers`
 - `PUT /api/history/:r_type/:id`
 - `DELETE /api/history/:r_type/:id`
+- `GET /api/tags`
+
+### 分類與預算
+
+- `GET /api/categories`
+- `POST /api/categories`
+- `PUT /api/categories/:id`
+- `DELETE /api/categories/:id`
+- `GET /api/budgets`：舊版單分類預算，相容保留。
+- `POST /api/budgets`：舊版單分類預算，相容保留。
+- `GET /api/budget-groups`
+- `POST /api/budget-groups`：新增、更新或刪除預算水庫。
 
 ### 股票
 
 - `GET /api/stocks`
 - `POST /api/stocks`
 - `POST /api/stocks/update-market-prices`
+- `GET /api/stocks/intraday-charts`
 
 ### LINE
 
@@ -284,6 +446,7 @@ SQLite 檔案：
 
 ```text
 assets.db
+demo-assets.db
 ```
 
 主要資料表：
@@ -292,6 +455,10 @@ assets.db
 - `transactions`
 - `transfers`
 - `stocks`
+- `categories`：收入/支出分類設定。
+- `transaction_tags`：由備註逗號拆出的 tag。
+- `budgets`：舊版單分類預算，保留相容。
+- `budget_groups`：預算水庫設定。
 - `line_reminders`
 - `line_tx_sessions`：LINE 快速記帳流程暫存。
 - `notify_settings`：舊版單一提醒設定，保留相容。
